@@ -1,3 +1,5 @@
+![Banner](banner.png)
+
 # dso-document-revision-history-remover
 Removes revision history from document files (e.g., .docx, .odt) to anonymize the evolution of the document. - Focused on Tools for sanitizing and obfuscating sensitive data within text files and structured data formats
 
