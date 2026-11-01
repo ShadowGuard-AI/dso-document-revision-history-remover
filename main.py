@@ -142,7 +142,13 @@ def remove_docx_revision_history(input_file, output_file):
                 removed += 1
                 logging.debug(f"Removed revision file: {rev_file}")
 
-            # Modify document.xml to remove track revisions.
+            # Scope, stated plainly: only word/document.xml is processed
+            # in the body. Tracked changes sitting in headers, footers, or
+            # footnotes live in their own parts and are never opened here,
+            # and word/comments.xml is left exactly as it was, so a
+            # document can come out of a successful run still carrying
+            # comment authors and header revisions. Clearing those is a
+            # wider tool than this one claims to be.
             document_xml_path = os.path.join(tmp_dir, 'word', 'document.xml')
             if os.path.exists(document_xml_path):
                 try:
@@ -319,7 +325,13 @@ def remove_odt_revision_history(input_file, output_file):
                 except Exception as e:
                     raise RevisionHistoryRemovalError(f"Error processing content.xml: {e}")
 
-            # Recreate the odt file
+            # The repack walks the extracted tree in filesystem order and
+            # deflates every entry. For ODT that changes the container's
+            # own rules: the format expects the mimetype entry first and
+            # stored uncompressed, and this pass guarantees neither, so a
+            # strict reader can refuse a file whose content is perfectly
+            # cleaned. The docx repack above shares the walk order point,
+            # where readers are more forgiving.
             with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as zip_out:
                 for root, _, files in os.walk(tmp_dir):
                     for file in files:
@@ -373,6 +385,11 @@ def main():
             logging.error("Unsupported file type. Only .docx and .odt are supported.")
             sys.exit(1)
         if removed == 0:
+            # The output file already exists by the time this count is
+            # known: both processors rebuild the package before returning.
+            # So a failed run still leaves a rebuilt copy of the document
+            # at the output path, and this message is the only thing that
+            # tells a caller it is a copy and not a cleaned result.
             logging.info(
                 f"No revision history removed from {input_file}: no tracked changes "
                 f"or revision metadata found, output copy saved to {output_file}")
